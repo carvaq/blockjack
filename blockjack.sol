@@ -59,18 +59,27 @@ contract BlockJack {
             dealCardsToDealer();
             phase = Phase.HitOrStand;
         } else if (phase == Phase.HitOrStand) {
-            //todo give cards to all that are in Decision = Hit
+            dealCardsToPlayer(1);
+            finalDealerReveal();
         }
 
         currentRoundTimeout = block.timestamp + roundSessionExpiry;
     }
 
-    function dealCardsToPlayer(uint256 cards) private {
+    function getCard() private returns (Card card){
+        
+    }
+
+    function dealCardsToPlayer(uint8 cards) private {
         //todo set decision to Stand if currently Undecided if phase == Phase.PlaceBets
         // give two to players  if phase == Phase.PlaceBets
     }
 
     function dealCardsToDealer() private {
+        //todo give one to dealer
+    }
+
+    function finalDealerReveal() private {
         //todo give one to dealer
     }
 
@@ -120,7 +129,15 @@ contract BlockJack {
 
     enum Card {
         Ace,
-        Number,
+        Two,
+        Three,
+        Four,
+        Five,
+        Six,
+        Seven,
+        Eight,
+        Nine,
+        Ten,
         Jack,
         Queen,
         King
