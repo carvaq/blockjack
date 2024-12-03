@@ -33,6 +33,10 @@ contract BlockJack {
         multiplier = _multiplier;
     }
 
+    function getRandomNumber() internal view returns (uint256) {
+        return uint256(keccak256(abi.encodePacked(msg.sender, block.timestamp)));
+    }
+
     function placeBet() public payable {
         require(phase == Phase.PlaceBets, "Not taking any new players.");
         require(msg.value == initialBet, "Incorrect initial bet.");
