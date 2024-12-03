@@ -10,7 +10,7 @@ contract BlockJack {
     address public dealer;
     uint256 currentRoundTimeout;
     uint256 multiplier;
-    uint8 numberOfCards = 13;
+    uint8 constant numberOfCards = 13;
 
     event Hit(address indexed player);
     event Stand(address indexed player);
