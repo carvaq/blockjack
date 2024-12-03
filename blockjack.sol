@@ -66,13 +66,18 @@ contract BlockJack {
         currentRoundTimeout = block.timestamp + roundSessionExpiry;
     }
 
-    function getCard() private returns (Card card){
-        
-    }
+    function getCard() private returns (Card card) {}
 
     function dealCardsToPlayer(uint8 cards) private {
-        //todo set decision to Stand if currently Undecided if phase == Phase.PlaceBets
-        // give two to players  if phase == Phase.PlaceBets
+        for (uint i = 0; i < players.length; i++) {
+            address playerAddress= players[i];
+            if(playerDecision[playerAddress] != PlayerDecision.Stand){
+                for (uint j = 0; i < cards; j++) {
+                    hand[playerAddress].push(getCard());
+                }
+                playerDecision[playerAddress] = PlayerDecision.Undecided;
+            }
+        }
     }
 
     function dealCardsToDealer() private {
