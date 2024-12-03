@@ -10,7 +10,7 @@ contract BlockJack {
     address public dealer;
     uint256 currentRoundTimeout;
     uint256 multiplier;
-    uint8 numberOfCards;
+    uint8 numberOfCards = 13;
 
     event Hit(address indexed player);
     event Stand(address indexed player);
@@ -32,7 +32,6 @@ contract BlockJack {
         roundSessionExpiry = _roundSessionExpiry;
         phase = Phase.PlaceBets;
         multiplier = _multiplier;
-        numberOfCards = setNumberOfCards();
     }
 
     function placeBet() public payable {
@@ -66,14 +65,6 @@ contract BlockJack {
         }
 
         currentRoundTimeout = block.timestamp + roundSessionExpiry;
-    }
-
-    function setNumberOfCards() public view returns (uint8) {
-        uint8 numberOfCards = 0;
-        while(Card(numberOfCards) == Card.King) {
-            numberOfCards++;
-        }
-        return numberOfCards;
     }
 
     function getCard(uint256 injectedRandomness) private returns (Card card) {
