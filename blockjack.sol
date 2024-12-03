@@ -10,6 +10,7 @@ contract BlockJack {
     address public dealer;
     uint256 currentRoundTimeout;
     uint256 multiplier;
+    uint8 constant numberOfCards = 13;
 
     event Hit(address indexed player);
     event Stand(address indexed player);
@@ -66,7 +67,9 @@ contract BlockJack {
         currentRoundTimeout = block.timestamp + roundSessionExpiry;
     }
 
-    function getCard() private returns (Card card) {}
+    function getCard(uint256 injectedRandomness) private returns (Card card) {
+        return Card(injectedRandomness % numberOfCards);
+    }
 
     function dealCardsToPlayer(uint8 cards) private {
         for (uint i = 0; i < players.length; i++) {
