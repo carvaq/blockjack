@@ -66,7 +66,9 @@ contract BlockJack {
         currentRoundTimeout = block.timestamp + roundSessionExpiry;
     }
 
-    function getCard() private returns (Card card) {}
+    function getCard(uint256 injectedRandomness) private returns (Card card) {
+        return Card(injectedRandomness % 14);
+    }
 
     function dealCardsToPlayer(uint8 cards) private {
         for (uint i = 0; i < players.length; i++) {
