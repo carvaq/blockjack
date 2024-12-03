@@ -1,10 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import "@openzeppelin/contracts/utils/math/Math.sol";
+
 /// @title TODO
 /// @author TODO
 /// @notice TODO
 contract BlockJack {
+    uint256 private constant ZERO_INDEX_SHIFT = 1;
+    uint256 private constant MAX_CARD_VALUE = 10;
+    uint256 private constant BLACK_JACK = 21;
+    uint256 private constant DEALER_DECISION = 17;
     uint16 public initialBet;
     uint16 public roundSessionExpiry;
     address public dealer;
@@ -16,11 +22,13 @@ contract BlockJack {
     event Stand(address indexed player);
     event Bust(address indexed player);
 
-    address[] players;
-    mapping(address => Card[]) public hand;
+    address[] private players;
+    mapping(address => Card[]) public hands;
     mapping(address => uint256) public bets;
-    mapping(address => PlayerDecision) public playerDecision;
+    mapping(address => PlayerDecision) public playerDecisions;
     Phase public phase;
+
+    mapping(Card => uint8[]) private enumValues;
 
     constructor(
         uint16 _initialBet,
@@ -40,7 +48,7 @@ contract BlockJack {
         bets[msg.sender] = msg.value;
         players.push(msg.sender);
 
-        playerDecision[msg.sender] = PlayerDecision.Undecided;
+        playerDecisions[msg.sender] = PlayerDecision.Undecided;
     }
 
     function deal(uint256 injectedRandomness) public {
@@ -56,11 +64,11 @@ contract BlockJack {
         );
 
         if (phase == Phase.PlaceBets) {
-            dealCardsToPlayer(2);
-            dealCardsToDealer();
+            dealInitialHand();
+            dealCardToDealer();
             phase = Phase.HitOrStand;
         } else if (phase == Phase.HitOrStand) {
-            dealCardsToPlayer(1);
+            dealCardsToPlayers();
             finalDealerReveal();
         }
 
@@ -71,29 +79,51 @@ contract BlockJack {
         return Card(injectedRandomness % numberOfCards);
     }
 
-    function dealCardsToPlayer(uint8 cards) private {
-        for (uint i = 0; i < players.length; i++) {
-            address playerAddress= players[i];
-            if(playerDecision[playerAddress] != PlayerDecision.Stand){
-                for (uint j = 0; i < cards; j++) {
-                    hand[playerAddress].push(getCard());
+    function dealCardsToPlayers() private {
+        for (uint256 i = 0; i < players.length; i++) {
+            address playerAddress = players[i];
+            PlayerDecision decision = playerDecisions[playerAddress];
+            if (decision == PlayerDecision.Hit) {
+                hands[playerAddress].push(getCard());
+                if (sumOfHand(hands[playerAddress]) > BLACK_JACK) {
+                    // sum of player cards is higher than BLACK_JACK
+                    emit Bust(playerAddress);
+                    playerDecisions[playerAddress] = PlayerDecision.Stand;
+                } else {
+                    playerDecisions[playerAddress] = PlayerDecision.Undecided;
                 }
-                playerDecision[playerAddress] = PlayerDecision.Undecided;
+            } else if (decision == PlayerDecision.Undecided) {
+                // handle the case the player missed the opportunity to decide on hit or stand
+                emit Stand(playerAddress);
+                playerDecisions[playerAddress] = PlayerDecision.Stand;
             }
         }
     }
 
-    function dealCardsToDealer() private {
-        //todo give one to dealer
+    function dealInitialHand() private {
+        for (uint256 i = 0; i < players.length; i++) {
+            address playerAddress = players[i];
+            hands[playerAddress].push(getCard());
+            hands[playerAddress].push(getCard());
+        }
+    }
+
+    function dealCardToDealer() private {
+        hands[dealer].push(getCard());
     }
 
     function finalDealerReveal() private {
-        //todo give one to dealer
+        while (sumOfHand(hands[dealer]) < DEALER_DECISION) {
+            hands[dealer].push(getCard());
+        }
+        if (sumOfHand(hands[dealer]) > BLACK_JACK) {
+            emit Bust(dealer);
+        }
     }
 
     function hit() public {
         require(
-            playerDecision[msg.sender] != PlayerDecision.Stand,
+            playerDecisions[msg.sender] != PlayerDecision.Stand,
             "Player already selected stand once."
         );
         decide(PlayerDecision.Hit);
@@ -102,7 +132,7 @@ contract BlockJack {
 
     function stand() public {
         require(
-            playerDecision[msg.sender] != PlayerDecision.Hit,
+            playerDecisions[msg.sender] != PlayerDecision.Hit,
             "Player already selected hit once."
         );
         decide(PlayerDecision.Stand);
@@ -120,19 +150,29 @@ contract BlockJack {
             "Round does not accept any more changes"
         );
 
-        playerDecision[msg.sender] = decision;
-        emit Hit(msg.sender);
+        playerDecisions[msg.sender] = decision;
     }
 
-    enum Phase {
-        PlaceBets,
-        HitOrStand
-    }
+    function sumOfHand(Card[] memory hand)
+        private
+        pure
+        returns (uint256 totalSum)
+    {
+        uint256 aceCount = 0;
+        for (uint256 i = 0; i < hand.length; i++) {
+            totalSum += Math.min(
+                uint256(hand[i]) + ZERO_INDEX_SHIFT,
+                MAX_CARD_VALUE
+            );
+            if (hand[i] == Card.Ace) aceCount++;
+        }
 
-    enum PlayerDecision {
-        Undecided,
-        Hit,
-        Stand
+        while (aceCount > 0 && totalSum + 10 <= BLACK_JACK) {
+            totalSum += 10; 
+            aceCount--;
+        }
+
+        return totalSum;
     }
 
     enum Card {
@@ -149,5 +189,15 @@ contract BlockJack {
         Jack,
         Queen,
         King
+    }
+    enum Phase {
+        PlaceBets,
+        HitOrStand
+    }
+
+    enum PlayerDecision {
+        Undecided,
+        Hit,
+        Stand
     }
 }
