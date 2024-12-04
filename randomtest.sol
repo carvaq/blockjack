@@ -9,4 +9,7 @@ contract RandomNumber {
     function getNumber() external view returns (uint) {
     return randNo;
      }
+     function getRandomNumber() external view returns (uint256) {
+        return uint256(keccak256(abi.encodePacked(msg.sender, block.timestamp)));
+    }
 }
