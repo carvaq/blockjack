@@ -64,12 +64,12 @@ contract BlockJack {
         );
 
         if (phase == Phase.PlaceBets) {
-            dealInitialHand();
-            dealCardToDealer();
+            dealInitialHand(injectedRandomness);
+            dealCardToDealer(injectedRandomness);
             phase = Phase.HitOrStand;
         } else if (phase == Phase.HitOrStand) {
-            dealCardsToPlayers();
-            finalDealerReveal();
+            dealCardsToPlayers(injectedRandomness);
+            finalDealerReveal(injectedRandomness);
         }
 
         currentRoundTimeout = block.timestamp + roundSessionExpiry;
@@ -79,12 +79,12 @@ contract BlockJack {
         return Card(injectedRandomness % numberOfCards);
     }
 
-    function dealCardsToPlayers() private {
+    function dealCardsToPlayers(uint256 injectedRandomness) private {
         for (uint256 i = 0; i < players.length; i++) {
             address playerAddress = players[i];
             PlayerDecision decision = playerDecisions[playerAddress];
             if (decision == PlayerDecision.Hit) {
-                hands[playerAddress].push(getCard());
+                hands[playerAddress].push(getCard(injectedRandomness));
                 if (sumOfHand(hands[playerAddress]) > BLACK_JACK) {
                     // sum of player cards is higher than BLACK_JACK
                     emit Bust(playerAddress);
@@ -100,21 +100,21 @@ contract BlockJack {
         }
     }
 
-    function dealInitialHand() private {
+    function dealInitialHand(uint256 injectedRandomness) private {
         for (uint256 i = 0; i < players.length; i++) {
             address playerAddress = players[i];
-            hands[playerAddress].push(getCard());
-            hands[playerAddress].push(getCard());
+            hands[playerAddress].push(getCard(injectedRandomness));
+            hands[playerAddress].push(getCard(injectedRandomness));
         }
     }
 
-    function dealCardToDealer() private {
-        hands[dealer].push(getCard());
+    function dealCardToDealer(uint256 injectedRandomness) private {
+        hands[dealer].push(getCard(injectedRandomness));
     }
 
-    function finalDealerReveal() private {
+    function finalDealerReveal(uint256 injectedRandomness) private {
         while (sumOfHand(hands[dealer]) < DEALER_DECISION) {
-            hands[dealer].push(getCard());
+            hands[dealer].push(getCard(injectedRandomness));
         }
         if (sumOfHand(hands[dealer]) > BLACK_JACK) {
             emit Bust(dealer);
