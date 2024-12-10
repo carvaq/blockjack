@@ -36,7 +36,7 @@ contract BlockJack {
     }
 
     function placeBet() public {
-        require(msg.sender == dealer, "Dealer cannot place bets.");
+        require(msg.sender != dealer, "Dealer cannot place bets.");
         require(phase == Phase.PlaceBets, "Not taking any new players.");
         require(playerStatus[msg.sender] == PlayerStatus.NotPlaying, "Player is already in the game.");
 
