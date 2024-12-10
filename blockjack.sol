@@ -115,11 +115,11 @@ contract BlockJack {
     function dealInitialHand() private {
         for (uint i = 0; i < players.length; i++) {
             address playerAddress = players[i];
-            hands[playerAddress].push(getCard());
-            hands[playerAddress].push(getCard());
+            hands[playerAddress].push(getCard(playerAddress));
+            hands[playerAddress].push(getCard(playerAddress));
         }
 
-        hands[dealer].push(getCard());
+        hands[dealer].push(getCard(dealer));
     }
 
     function handleRoundForPlayers() private {
@@ -154,7 +154,7 @@ contract BlockJack {
     }
 
     function dealCardToPlayer(address playerAddress) private {
-        hands[playerAddress].push(getCard());
+        hands[playerAddress].push(getCard(playerAddress));
         // sum of player cards is higher than BLACK_JACK
         if (sumOfHand(hands[playerAddress]) > BLACK_JACK) {
             emit Bust(playerAddress);
@@ -168,7 +168,7 @@ contract BlockJack {
         // dealer should only continue if there are any players to continue round
         if (phase == Phase.HitOrStand) {
             while (sumOfHand(hands[dealer]) < DEALER_DECISION) {
-                hands[dealer].push(getCard());
+                hands[dealer].push(getCard(dealer));
             }
             if (sumOfHand(hands[dealer]) > BLACK_JACK) {
                 notifyPlayersThatWon();
@@ -187,12 +187,23 @@ contract BlockJack {
         }
     }
 
-    function getCard() private view returns (Card card) {
-        return Card(getRandomNumber() % NUMBER_OF_CARDS);
+    function getCard(address playerAddress) private view returns (Card card) {
+        return Card(getRandomNumber(playerAddress) % NUMBER_OF_CARDS);
     }
 
-    function getRandomNumber() internal view returns (uint) {
-        return uint(keccak256(abi.encodePacked(msg.sender, block.timestamp)));
+    function getRandomNumber(address playerAddress) internal view returns (uint) {
+        return uint(
+            keccak256(
+                abi.encodePacked(
+                    playerAddress,
+                    block.timestamp,
+                    block.number,
+                    block.prevrandao,
+                    blockhash(block.number - 1),
+                    hands[playerAddress]
+                )
+            )
+        );
     }
 
     function sumOfHand(
