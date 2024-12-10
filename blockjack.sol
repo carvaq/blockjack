@@ -29,8 +29,15 @@ contract BlockJack {
         phase = Phase.PlaceBets;
     }
 
-    function getHand() public view returns (Card[] memory)  {
-        return hands[msg.sender];
+    function getHand() public view returns (uint[] memory)  {
+        Card[] memory playerHand = hands[msg.sender];
+        uint[] memory numericHand = new uint[](playerHand.length);
+
+        for (uint i = 0; i < playerHand.length; i++) {
+            numericHand[i] = uint(playerHand[i]) + ZERO_INDEX_SHIFT;
+        }
+
+        return numericHand;
     }
 
     function placeBet() public {
@@ -118,32 +125,33 @@ contract BlockJack {
     function handleRoundForPlayers() private {
         uint playersBust = 0;
         uint playersStand = 0;
-        uint playersThatCanContinuePlaying = players.length;
+
         for (uint i = 0; i < players.length; i++) {
             address playerAddress = players[i];
             PlayerStatus status = playerStatus[playerAddress];
+
             if (status == PlayerStatus.Hit) {
                 dealCardToPlayer(playerAddress);
             } else if (status == PlayerStatus.NeedsToDecide) {
-                // handle the case the player missed the opportunity to decide on hit or stand
-                emit Stand(playerAddress);
-                playerStatus[playerAddress] = PlayerStatus.Stand;
+                markPlayerAsStand(playerAddress);
             }
 
-            if (playerStatus[playerAddress] == PlayerStatus.Stand) {
-                //players that will no longer be able to play have the status PlayerStatus.Stand
-                playersStand += 1;
-            } else if (playerStatus[playerAddress] == PlayerStatus.Bust) {
-                playersBust += 1;
-            }
+            if (playerStatus[playerAddress] == PlayerStatus.Stand) playersStand++;
+            else if (playerStatus[playerAddress] == PlayerStatus.Bust) playersBust++;
         }
-        if (playersBust == players.length) {
-            phase = Phase.PlayersBust;
-        }else if(playersBust + playersStand == players.length){
-            phase = Phase.PlayersStand;
-        }
+
+        updateGamePhase(playersBust, playersStand);
     }
 
+    function markPlayerAsStand(address player) private {
+        emit Stand(player);
+        playerStatus[player] = PlayerStatus.Stand;
+    }
+
+    function updateGamePhase(uint playersBust, uint playersStand) private {
+        if (playersBust == players.length) phase = Phase.PlayersBust;
+        else if (playersBust + playersStand == players.length) phase = Phase.PlayersStand;
+    }
 
     function dealCardToPlayer(address playerAddress) private {
         hands[playerAddress].push(getCard());
@@ -165,7 +173,7 @@ contract BlockJack {
             if (sumOfHand(hands[dealer]) > BLACK_JACK) {
                 notifyPlayersThatWon();
                 emit Bust(dealer);
-            }else{
+            } else {
                 emit Win(dealer);
             }
         }
