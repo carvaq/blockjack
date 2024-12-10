@@ -36,7 +36,7 @@ contract BlockJack {
     }
 
     function placeBet() public payable {
-        require(msg.address == dealer, "Dealer cannot place bets.");
+        require(msg.sender == dealer, "Dealer cannot place bets.");
         require(phase == Phase.PlaceBets, "Not taking any new players.");
         require(msg.value == initialBet, "Incorrect initial bet.");
         players.push(msg.sender);
@@ -45,7 +45,7 @@ contract BlockJack {
     }
 
     function deal() public {
-        require(msg.sender == dealer, "Only the dealer can deal");
+        require(msg.sender == dealer, "Only the dealer can deal.");
         require(
             block.timestamp >= currentRoundTimeout,
             "Current round is still running."
