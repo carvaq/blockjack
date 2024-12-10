@@ -16,7 +16,7 @@ contract BlockJack {
     address public dealer;
     uint256 currentRoundTimeout;
     uint256 multiplier;
-    uint8 constant numberOfCards = 13;
+    uint8 constant NUMBER_OF_CARDS = 13;
 
     event Hit(address indexed player);
     event Stand(address indexed player);
@@ -24,28 +24,21 @@ contract BlockJack {
 
     address[] private players;
     mapping(address => Card[]) public hands;
-    mapping(address => uint256) public bets;
     mapping(address => PlayerDecision) public playerDecisions;
     Phase public phase;
 
     mapping(Card => uint8[]) private enumValues;
 
-    constructor(
-        uint16 _initialBet,
-        uint16 _roundSessionExpiry,
-        uint256 _multiplier
-    ) {
+    constructor(uint16 _roundSessionExpiry) {
         dealer = msg.sender;
-        initialBet = _initialBet;
         roundSessionExpiry = _roundSessionExpiry;
         phase = Phase.PlaceBets;
-        multiplier = _multiplier;
     }
 
     function placeBet() public payable {
+        require(msg.address == dealer, "Dealer cannot place bets.");
         require(phase == Phase.PlaceBets, "Not taking any new players.");
         require(msg.value == initialBet, "Incorrect initial bet.");
-        bets[msg.sender] = msg.value;
         players.push(msg.sender);
 
         playerDecisions[msg.sender] = PlayerDecision.Undecided;
@@ -76,11 +69,12 @@ contract BlockJack {
     }
 
     function getCard() private view returns (Card card) {
-        return Card(getRandomNumber() % numberOfCards);
+        return Card(getRandomNumber() % NUMBER_OF_CARDS);
     }
 
     function getRandomNumber() internal view returns (uint256) {
-        return uint256(keccak256(abi.encodePacked(msg.sender, block.timestamp)));
+        return
+            uint256(keccak256(abi.encodePacked(msg.sender, block.timestamp)));
     }
 
     function dealCardsToPlayers() private {
@@ -144,7 +138,10 @@ contract BlockJack {
     }
 
     function decide(PlayerDecision decision) private {
-        require(bets[msg.sender] != 0, "Player didn't place any bets.");
+        require(
+            playerDecisions[msg.sender] != 0,
+            "Player didn't place any bets."
+        );
         require(
             phase == Phase.HitOrStand,
             "Currently not allowing hit or stand actions."
@@ -157,11 +154,9 @@ contract BlockJack {
         playerDecisions[msg.sender] = decision;
     }
 
-    function sumOfHand(Card[] memory hand)
-        private
-        pure
-        returns (uint256 totalSum)
-    {
+    function sumOfHand(
+        Card[] memory hand
+    ) private pure returns (uint256 totalSum) {
         uint256 aceCount = 0;
         for (uint256 i = 0; i < hand.length; i++) {
             totalSum += Math.min(
@@ -172,7 +167,7 @@ contract BlockJack {
         }
 
         while (aceCount > 0 && totalSum + 10 <= BLACK_JACK) {
-            totalSum += 10; 
+            totalSum += 10;
             aceCount--;
         }
 
