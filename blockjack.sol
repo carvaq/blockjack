@@ -8,33 +8,37 @@ contract BlockJack {
     uint8 private constant MAX_CARD_VALUE = 10;
     uint8 private constant BLACK_JACK = 21;
     uint8 private constant DEALER_DECISION = 17;
-    uint8 private constant  NUMBER_OF_CARDS = 13;
-    uint private roundSessionExpiryInSeconds;
+    uint8 private constant NUMBER_OF_CARDS = 13;
+
     address public dealer;
-    uint private currentRoundTimeout;
+    uint8 public maxPlayers;
+    Phase public phase;
 
     event Hit(address indexed player);
     event Stand(address indexed player);
     event Bust(address indexed player);
     event Win(address indexed player);
 
+    uint256 private roundSessionExpiryInSeconds;
+    uint256 private currentRoundTimeout;
+
     address[] private players;
     mapping(address => Card[]) private hands;
     mapping(address => PlayerStatus) private playerStatus;
-    Phase public phase;
 
-    constructor(uint _roundSessionExpiryInSeconds) {
+    constructor(uint256 _roundSessionExpiryInSeconds, uint8 _maxPlayers) {
         dealer = msg.sender;
         roundSessionExpiryInSeconds = _roundSessionExpiryInSeconds;
+        maxPlayers = _maxPlayers;
         phase = Phase.PlaceBets;
     }
 
-    function getHand() public view returns (uint[] memory)  {
+    function getHand() public view returns (uint256[] memory) {
         Card[] memory playerHand = hands[msg.sender];
-        uint[] memory numericHand = new uint[](playerHand.length);
+        uint256[] memory numericHand = new uint256[](playerHand.length);
 
-        for (uint i = 0; i < playerHand.length; i++) {
-            numericHand[i] = uint(playerHand[i]) + ZERO_INDEX_SHIFT;
+        for (uint256 i = 0; i < playerHand.length; i++) {
+            numericHand[i] = uint256(playerHand[i]) + ZERO_INDEX_SHIFT;
         }
 
         return numericHand;
@@ -43,7 +47,14 @@ contract BlockJack {
     function placeBet() public {
         require(msg.sender != dealer, "Dealer cannot place bets.");
         require(phase == Phase.PlaceBets, "Not taking any new players.");
-        require(playerStatus[msg.sender] == PlayerStatus.NotPlaying, "Player is already in the game.");
+        require(
+            playerStatus[msg.sender] == PlayerStatus.NotPlaying,
+            "Player is already in the game."
+        );
+        require(
+            players.length < maxPlayers,
+            "Maximum number of players reached."
+        );
 
         players.push(msg.sender);
         playerStatus[msg.sender] = PlayerStatus.NeedsToDecide;
@@ -104,8 +115,8 @@ contract BlockJack {
         playerStatus[msg.sender] = status;
     }
 
-    function haveAllPlayersDecided() private view returns (bool){
-        for (uint i = 0; i < players.length; i++) {
+    function haveAllPlayersDecided() private view returns (bool) {
+        for (uint256 i = 0; i < players.length; i++) {
             PlayerStatus status = playerStatus[players[i]];
             if (status == PlayerStatus.NeedsToDecide) return false;
         }
@@ -113,7 +124,7 @@ contract BlockJack {
     }
 
     function dealInitialHand() private {
-        for (uint i = 0; i < players.length; i++) {
+        for (uint256 i = 0; i < players.length; i++) {
             address playerAddress = players[i];
             hands[playerAddress].push(getCard(playerAddress));
             hands[playerAddress].push(getCard(playerAddress));
@@ -123,10 +134,10 @@ contract BlockJack {
     }
 
     function handleRoundForPlayers() private {
-        uint playersBust = 0;
-        uint playersStand = 0;
+        uint256 playersBust = 0;
+        uint256 playersStand = 0;
 
-        for (uint i = 0; i < players.length; i++) {
+        for (uint256 i = 0; i < players.length; i++) {
             address playerAddress = players[i];
             PlayerStatus status = playerStatus[playerAddress];
 
@@ -136,8 +147,10 @@ contract BlockJack {
                 markPlayerAsStand(playerAddress);
             }
 
-            if (playerStatus[playerAddress] == PlayerStatus.Stand) playersStand++;
-            else if (playerStatus[playerAddress] == PlayerStatus.Bust) playersBust++;
+            if (playerStatus[playerAddress] == PlayerStatus.Stand)
+                playersStand++;
+            else if (playerStatus[playerAddress] == PlayerStatus.Bust)
+                playersBust++;
         }
 
         updateGamePhase(playersBust, playersStand);
@@ -148,9 +161,12 @@ contract BlockJack {
         playerStatus[player] = PlayerStatus.Stand;
     }
 
-    function updateGamePhase(uint playersBust, uint playersStand) private {
+    function updateGamePhase(uint256 playersBust, uint256 playersStand)
+    private
+    {
         if (playersBust == players.length) phase = Phase.PlayersBust;
-        else if (playersBust + playersStand == players.length) phase = Phase.PlayersStand;
+        else if (playersBust + playersStand == players.length)
+            phase = Phase.PlayersStand;
     }
 
     function dealCardToPlayer(address playerAddress) private {
@@ -180,7 +196,7 @@ contract BlockJack {
     }
 
     function notifyPlayersThatWon() private {
-        for (uint i = 0; i < players.length; i++) {
+        for (uint256 i = 0; i < players.length; i++) {
             if (playerStatus[players[i]] == PlayerStatus.Stand) {
                 emit Win(players[i]);
             }
@@ -191,8 +207,13 @@ contract BlockJack {
         return Card(getRandomNumber(playerAddress) % NUMBER_OF_CARDS);
     }
 
-    function getRandomNumber(address playerAddress) internal view returns (uint) {
-        return uint(
+    function getRandomNumber(address playerAddress)
+    internal
+    view
+    returns (uint256)
+    {
+        return
+            uint256(
             keccak256(
                 abi.encodePacked(
                     playerAddress,
@@ -206,13 +227,15 @@ contract BlockJack {
         );
     }
 
-    function sumOfHand(
-        Card[] memory hand
-    ) private pure returns (uint totalSum) {
-        uint aceCount = 0;
-        for (uint i = 0; i < hand.length; i++) {
+    function sumOfHand(Card[] memory hand)
+    private
+    pure
+    returns (uint256 totalSum)
+    {
+        uint256 aceCount = 0;
+        for (uint256 i = 0; i < hand.length; i++) {
             totalSum += Math.min(
-                uint(hand[i]) + ZERO_INDEX_SHIFT,
+                uint256(hand[i]) + ZERO_INDEX_SHIFT,
                 MAX_CARD_VALUE
             );
             if (hand[i] == Card.Ace) aceCount++;
@@ -228,7 +251,7 @@ contract BlockJack {
 
     function resetState() private {
         phase = Phase.PlaceBets;
-        for (uint i = 0; i < players.length; i++) {
+        for (uint256 i = 0; i < players.length; i++) {
             delete hands[players[i]];
             playerStatus[players[i]] = PlayerStatus.NotPlaying;
         }
