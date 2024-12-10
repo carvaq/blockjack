@@ -51,7 +51,7 @@ contract BlockJack {
         playerDecisions[msg.sender] = PlayerDecision.Undecided;
     }
 
-    function deal(uint256 injectedRandomness) public {
+    function deal() public {
         require(msg.sender == dealer, "Only the dealer can deal");
         require(
             block.timestamp >= currentRoundTimeout,
@@ -64,27 +64,31 @@ contract BlockJack {
         );
 
         if (phase == Phase.PlaceBets) {
-            dealInitialHand(injectedRandomness);
-            dealCardToDealer(injectedRandomness);
+            dealInitialHand();
+            dealCardToDealer();
             phase = Phase.HitOrStand;
         } else if (phase == Phase.HitOrStand) {
-            dealCardsToPlayers(injectedRandomness);
-            finalDealerReveal(injectedRandomness);
+            dealCardsToPlayers();
+            finalDealerReveal();
         }
 
         currentRoundTimeout = block.timestamp + roundSessionExpiry;
     }
 
-    function getCard(uint256 injectedRandomness) private returns (Card card) {
-        return Card(injectedRandomness % numberOfCards);
+    function getCard() private view returns (Card card) {
+        return Card(getRandomNumber() % numberOfCards);
     }
 
-    function dealCardsToPlayers(uint256 injectedRandomness) private {
+    function getRandomNumber() internal view returns (uint256) {
+        return uint256(keccak256(abi.encodePacked(msg.sender, block.timestamp)));
+    }
+
+    function dealCardsToPlayers() private {
         for (uint256 i = 0; i < players.length; i++) {
             address playerAddress = players[i];
             PlayerDecision decision = playerDecisions[playerAddress];
             if (decision == PlayerDecision.Hit) {
-                hands[playerAddress].push(getCard(injectedRandomness));
+                hands[playerAddress].push(getCard());
                 if (sumOfHand(hands[playerAddress]) > BLACK_JACK) {
                     // sum of player cards is higher than BLACK_JACK
                     emit Bust(playerAddress);
@@ -100,21 +104,21 @@ contract BlockJack {
         }
     }
 
-    function dealInitialHand(uint256 injectedRandomness) private {
+    function dealInitialHand() private {
         for (uint256 i = 0; i < players.length; i++) {
             address playerAddress = players[i];
-            hands[playerAddress].push(getCard(injectedRandomness));
-            hands[playerAddress].push(getCard(injectedRandomness));
+            hands[playerAddress].push(getCard());
+            hands[playerAddress].push(getCard());
         }
     }
 
-    function dealCardToDealer(uint256 injectedRandomness) private {
-        hands[dealer].push(getCard(injectedRandomness));
+    function dealCardToDealer() private {
+        hands[dealer].push(getCard());
     }
 
-    function finalDealerReveal(uint256 injectedRandomness) private {
+    function finalDealerReveal() private {
         while (sumOfHand(hands[dealer]) < DEALER_DECISION) {
-            hands[dealer].push(getCard(injectedRandomness));
+            hands[dealer].push(getCard());
         }
         if (sumOfHand(hands[dealer]) > BLACK_JACK) {
             emit Bust(dealer);
