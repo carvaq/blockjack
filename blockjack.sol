@@ -27,7 +27,6 @@ contract BlockJack {
     mapping(address => PlayerDecision) public playerDecisions;
     Phase public phase;
 
-    mapping(Card => uint8[]) private enumValues;
 
     constructor(uint16 _roundSessionExpiry) {
         dealer = msg.sender;
@@ -139,7 +138,7 @@ contract BlockJack {
 
     function decide(PlayerDecision decision) private {
         require(
-            playerDecisions[msg.sender] != 0,
+            playerDecisions[msg.sender] != PlayerDecision.NoPlayer,
             "Player didn't place any bets."
         );
         require(
@@ -195,6 +194,7 @@ contract BlockJack {
     }
 
     enum PlayerDecision {
+        NoPlayer,
         Undecided,
         Hit,
         Stand
