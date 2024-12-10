@@ -13,8 +13,7 @@ contract BlockJack {
     uint private constant DEALER_DECISION = 17;
     uint public roundSessionExpiryInSeconds;
     address public dealer;
-    uint currentRoundTimeout;
-    uint multiplier;
+    uint private currentRoundTimeout;
     uint8 constant NUMBER_OF_CARDS = 13;
 
     event Hit(address indexed player);
@@ -22,8 +21,8 @@ contract BlockJack {
     event Bust(address indexed player);
 
     address[] private players;
-    mapping(address => Card[]) public hands;
-    mapping(address => PlayerStatus) public playerStatus;
+    mapping(address => Card[]) private hands;
+    mapping(address => PlayerStatus) private playerStatus;
     Phase public phase;
 
     constructor(uint _roundSessionExpiryInSeconds) {
@@ -51,7 +50,7 @@ contract BlockJack {
             "Current round is still running."
         );
         require(
-            players.length >= 0,
+            players.length > 0,
             "No players are registered for this round."
         );
 
