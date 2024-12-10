@@ -195,6 +195,11 @@ contract BlockJack {
 
     function resetState() private {
         phase = Phase.PlaceBets;
+        for (uint i = 0; i < players.length; i++) {
+            delete hands[players[i]];
+            playerStatus[players[i]] = PlayerStatus.NotPlaying;
+        }
+        delete players;
     }
 
     enum Card {
