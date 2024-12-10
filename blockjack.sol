@@ -47,7 +47,7 @@ contract BlockJack {
     function deal() public {
         require(msg.sender == dealer, "Only the dealer can deal.");
         require(
-            block.timestamp >= currentRoundTimeout,
+             haveAllPlayersDecided() || block.timestamp >= currentRoundTimeout,
             "Current round is still running."
         );
         require(
@@ -73,27 +73,19 @@ contract BlockJack {
     }
 
     function hit() public {
-        require(
-            playerStatus[msg.sender] != PlayerStatus.Stand,
-            "Player already selected stand once."
-        );
         decide(PlayerStatus.Hit);
         emit Hit(msg.sender);
     }
 
     function stand() public {
-        require(
-            playerStatus[msg.sender] != PlayerStatus.Hit,
-            "Player already selected hit once."
-        );
         decide(PlayerStatus.Stand);
         emit Stand(msg.sender);
     }
 
     function decide(PlayerStatus status) private {
         require(
-            playerStatus[msg.sender] != PlayerStatus.NotPlaying,
-            "Only player can hit or stand."
+            playerStatus[msg.sender] == PlayerStatus.NeedsToDecide,
+            "Player cannot hit or stand currently."
         );
         require(
             phase == Phase.HitOrStand,
@@ -105,6 +97,14 @@ contract BlockJack {
         );
 
         playerStatus[msg.sender] = status;
+    }
+
+    function haveAllPlayersDecided() private view returns (bool){
+        for (uint i = 0; i < players.length; i++) {
+            PlayerStatus status = playerStatus[players[i]];
+            if (status == PlayerStatus.NeedsToDecide) return false;
+        }
+        return true;
     }
 
     function dealInitialHand() private {
