@@ -8,19 +8,14 @@
 			{
 				"inputs": [
 					{
-						"internalType": "uint16",
-						"name": "_initialBet",
-						"type": "uint16"
-					},
-					{
-						"internalType": "uint16",
-						"name": "_roundSessionExpiry",
-						"type": "uint16"
-					},
-					{
 						"internalType": "uint256",
-						"name": "_multiplier",
+						"name": "_roundSessionExpiryInSeconds",
 						"type": "uint256"
+					},
+					{
+						"internalType": "uint8",
+						"name": "_maxPlayers",
+						"type": "uint8"
 					}
 				],
 				"stateMutability": "nonpayable",
@@ -66,23 +61,17 @@
 				"type": "event"
 			},
 			{
+				"anonymous": false,
 				"inputs": [
 					{
+						"indexed": true,
 						"internalType": "address",
-						"name": "",
+						"name": "player",
 						"type": "address"
 					}
 				],
-				"name": "bets",
-				"outputs": [
-					{
-						"internalType": "uint256",
-						"name": "",
-						"type": "uint256"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
+				"name": "Win",
+				"type": "event"
 			},
 			{
 				"inputs": [],
@@ -105,24 +94,13 @@
 				"type": "function"
 			},
 			{
-				"inputs": [
-					{
-						"internalType": "address",
-						"name": "",
-						"type": "address"
-					},
-					{
-						"internalType": "uint256",
-						"name": "",
-						"type": "uint256"
-					}
-				],
-				"name": "hands",
+				"inputs": [],
+				"name": "getHand",
 				"outputs": [
 					{
-						"internalType": "enum BlockJack.Card",
+						"internalType": "uint256[]",
 						"name": "",
-						"type": "uint8"
+						"type": "uint256[]"
 					}
 				],
 				"stateMutability": "view",
@@ -137,12 +115,12 @@
 			},
 			{
 				"inputs": [],
-				"name": "initialBet",
+				"name": "maxPlayers",
 				"outputs": [
 					{
-						"internalType": "uint16",
+						"internalType": "uint8",
 						"name": "",
-						"type": "uint16"
+						"type": "uint8"
 					}
 				],
 				"stateMutability": "view",
@@ -165,39 +143,7 @@
 				"inputs": [],
 				"name": "placeBet",
 				"outputs": [],
-				"stateMutability": "payable",
-				"type": "function"
-			},
-			{
-				"inputs": [
-					{
-						"internalType": "address",
-						"name": "",
-						"type": "address"
-					}
-				],
-				"name": "playerDecisions",
-				"outputs": [
-					{
-						"internalType": "enum BlockJack.PlayerDecision",
-						"name": "",
-						"type": "uint8"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [],
-				"name": "roundSessionExpiry",
-				"outputs": [
-					{
-						"internalType": "uint16",
-						"name": "",
-						"type": "uint16"
-					}
-				],
-				"stateMutability": "view",
+				"stateMutability": "nonpayable",
 				"type": "function"
 			},
 			{
@@ -209,16 +155,40 @@
 			}
 		],
 		"devdoc": {
-			"author": "TODO",
+			"details": "Blackjack as a smart contract. A round of blockjack runs in the following order:  1. The owner of the contract (deployer) is the dealer. He determines the maximum amount of players.  2. Players register to the game by running `placeBet()`. (currently free ;) ..)  3. Dealer deals cards with `deal()`. Everyone can check their hand with `getHand()`  4. Players either request an additional card with `hit()` or abstain with `stand()`  5. Dealer deals additional cards to any players whi requested.  6. Repeat 3. - 5. until no new requests.",
 			"kind": "dev",
-			"methods": {},
-			"title": "TODO",
+			"methods": {
+				"constructor": {
+					"params": {
+						"_maxPlayers": "The maximum number of players.",
+						"_roundSessionExpiryInSeconds": "The maximum duration of a round in seconds."
+					}
+				},
+				"deal()": {
+					"details": "Deal cards to all players that want to. (`hit()`)"
+				},
+				"getHand()": {
+					"details": "Returns the hand of the calling player.",
+					"returns": {
+						"_0": "An array of uint256 representing the player's hand."
+					}
+				},
+				"hit()": {
+					"details": "updates players status to hit. Allows him to request an additional card."
+				},
+				"placeBet()": {
+					"details": "Allows a player to join the game by placing a bet."
+				},
+				"stand()": {
+					"details": "updates players status to stand. Player chooses not to receive any additional cards."
+				}
+			},
+			"title": "BlockJack",
 			"version": 1
 		},
 		"userdoc": {
 			"kind": "user",
 			"methods": {},
-			"notice": "TODO",
 			"version": 1
 		}
 	},
@@ -263,11 +233,11 @@
 			]
 		},
 		"blockjack.sol": {
-			"keccak256": "0x49e0a3459319b765ce119cb8b8144f431df4e0eaa5ae27f7b2cfda5e0ccf71b6",
+			"keccak256": "0x077f69e85f206ba0b9bc584e605b85d94c5e33298fbdf26239e46f4127bd3992",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://87879c3b6332c0a7948343529d3d91fada201065f1a2ef365f60ccacf40498b2",
-				"dweb:/ipfs/QmSXFpcgZueC5C13f7JSXZaJEwrvE128NZ15hBVT9CYqET"
+				"bzz-raw://108ab8df432e4ca3c2a17d1352dff090478bb65581f2d72f354e5ea5d9bf9b54",
+				"dweb:/ipfs/QmVPcZAm848pdX5hkUdQP8ZhyApS35bCQNxtHG7HgXYMyB"
 			]
 		}
 	},

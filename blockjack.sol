@@ -3,6 +3,19 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
+/**
+ * @title BlockJack
+ * @dev Blackjack as a smart contract.
+ *
+ * A round of blockjack runs in the following order:
+ *  1. The owner of the contract (deployer) is the dealer. He determines the maximum amount of players.
+ *  2. Players register to the game by running `placeBet()`. (currently free ;) ..)
+ *  3. Dealer deals cards with `deal()`. Everyone can check their hand with `getHand()`
+ *  4. Players either request an additional card with `hit()` or abstain with `stand()`
+ *  5. Dealer deals additional cards to any players whi requested.
+ *  6. Repeat 3. - 5. until no new requests.
+ *
+ */
 contract BlockJack {
     uint8 private constant ZERO_INDEX_SHIFT = 1;
     uint8 private constant MAX_CARD_VALUE = 10;
@@ -26,6 +39,10 @@ contract BlockJack {
     mapping(address => Card[]) private hands;
     mapping(address => PlayerStatus) private playerStatus;
 
+    /**
+     * @param _roundSessionExpiryInSeconds The maximum duration of a round in seconds.
+     * @param _maxPlayers The maximum number of players.
+     */
     constructor(uint256 _roundSessionExpiryInSeconds, uint8 _maxPlayers) {
         dealer = msg.sender;
         roundSessionExpiryInSeconds = _roundSessionExpiryInSeconds;
@@ -33,10 +50,15 @@ contract BlockJack {
         phase = Phase.PlaceBets;
     }
 
+    /**
+     * @dev Returns the hand of the calling player.
+     * @return An array of uint256 representing the player's hand.
+     */
     function getHand() public view returns (uint256[] memory) {
         Card[] memory playerHand = hands[msg.sender];
         uint256[] memory numericHand = new uint256[](playerHand.length);
 
+// TODO: Update to max value
         for (uint256 i = 0; i < playerHand.length; i++) {
             numericHand[i] = uint256(playerHand[i]) + ZERO_INDEX_SHIFT;
         }
@@ -44,6 +66,11 @@ contract BlockJack {
         return numericHand;
     }
 
+
+
+    /**
+     * @dev Allows a player to join the game by placing a bet.
+     */
     function placeBet() public {
         require(msg.sender != dealer, "Dealer cannot place bets.");
         require(phase == Phase.PlaceBets, "Not taking any new players.");
@@ -60,6 +87,9 @@ contract BlockJack {
         playerStatus[msg.sender] = PlayerStatus.NeedsToDecide;
     }
 
+    /**
+     * @dev Deal cards to all players that want to. (`hit()`)
+     */
     function deal() public {
         require(msg.sender == dealer, "Only the dealer can deal.");
         require(
@@ -88,16 +118,27 @@ contract BlockJack {
         }
     }
 
+    /**
+    * @dev updates players status to hit. Allows him to request an additional card.
+    */
     function hit() public {
         decide(PlayerStatus.Hit);
         emit Hit(msg.sender);
     }
 
+    /**
+    * @dev updates players status to stand. Player chooses not to receive any additional cards.
+    */
     function stand() public {
         decide(PlayerStatus.Stand);
         emit Stand(msg.sender);
     }
 
+
+    /**
+     * @dev Handle player decision.
+     * @param status The decision of the player (Hit or Stand).
+     */
     function decide(PlayerStatus status) private {
         require(
             playerStatus[msg.sender] == PlayerStatus.NeedsToDecide,
@@ -115,6 +156,9 @@ contract BlockJack {
         playerStatus[msg.sender] = status;
     }
 
+   /**
+     * @return True if all players have decided.
+     */
     function haveAllPlayersDecided() private view returns (bool) {
         for (uint256 i = 0; i < players.length; i++) {
             PlayerStatus status = playerStatus[players[i]];
@@ -123,6 +167,9 @@ contract BlockJack {
         return true;
     }
 
+    /**
+     * @dev Deals the initial hand of two cards to each player and one card to the dealer.
+     */
     function dealInitialHand() private {
         for (uint256 i = 0; i < players.length; i++) {
             address playerAddress = players[i];
@@ -133,6 +180,9 @@ contract BlockJack {
         hands[dealer].push(getCard(dealer));
     }
 
+    /**
+     * @dev Lets the dealer forward the round, if players don't decide. A undecided player will be interpreted as `stand`.
+     */
     function handleRoundForPlayers() private {
         uint256 playersBust = 0;
         uint256 playersStand = 0;
@@ -156,11 +206,18 @@ contract BlockJack {
         updateGamePhase(playersBust, playersStand);
     }
 
+
     function markPlayerAsStand(address player) private {
         emit Stand(player);
         playerStatus[player] = PlayerStatus.Stand;
     }
 
+
+    /**
+     * @dev Updates the game phase based on the player statuses.
+     * @param playersBust The number of players who have busted.
+     * @param playersStand The number of players who have stood.
+     */
     function updateGamePhase(uint256 playersBust, uint256 playersStand)
     private
     {
@@ -169,6 +226,10 @@ contract BlockJack {
             phase = Phase.PlayersStand;
     }
 
+    /**
+     * @dev Deals a card to the specified player and updates their status.
+     * @param playerAddress The address of the player.
+     */
     function dealCardToPlayer(address playerAddress) private {
         hands[playerAddress].push(getCard(playerAddress));
         // sum of player cards is higher than BLACK_JACK
@@ -180,6 +241,10 @@ contract BlockJack {
         }
     }
 
+
+    /**
+     * @dev Handles the dealer's actions and determines the outcome of the game.
+     */
     function dealerReveal() private {
         // dealer should only continue if there are any players to continue round
         if (phase == Phase.HitOrStand) {
@@ -195,6 +260,9 @@ contract BlockJack {
         }
     }
 
+    /**
+     * @dev Notifies all winners.
+     */
     function notifyPlayersThatWon() private {
         for (uint256 i = 0; i < players.length; i++) {
             if (playerStatus[players[i]] == PlayerStatus.Stand) {
@@ -207,6 +275,11 @@ contract BlockJack {
         return Card(getRandomNumber(playerAddress) % NUMBER_OF_CARDS);
     }
 
+    /**
+     * @dev Generates a pseudo-random number based on the player's address and blockchain state.
+     * @param playerAddress The address of the player.
+     * @return A pseudo-random uint256.
+     */
     function getRandomNumber(address playerAddress)
     internal
     view
