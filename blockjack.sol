@@ -27,10 +27,8 @@ contract BlockJack {
     uint8 public maxPlayers;
     Phase public phase;
 
-    event Hit(address indexed player);
-    event Stand(address indexed player);
     event Bust(address indexed player);
-    event Win(address indexed player);
+    event Win(address indexed player, Card[] cards);
 
     uint256 private roundSessionExpiryInSeconds;
     uint256 private currentRoundTimeout;
@@ -52,21 +50,25 @@ contract BlockJack {
 
     /**
      * @dev Returns the hand of the calling player.
-     * @return An array of uint256 representing the player's hand.
+     * @return An array of uint256 representing the player's hand from 1-13 [Ace - King].
      */
     function getHand() public view returns (uint256[] memory) {
         Card[] memory playerHand = hands[msg.sender];
         uint256[] memory numericHand = new uint256[](playerHand.length);
 
-// TODO: Update to max value
         for (uint256 i = 0; i < playerHand.length; i++) {
             numericHand[i] = uint256(playerHand[i]) + ZERO_INDEX_SHIFT;
         }
 
         return numericHand;
     }
-
-
+    /**
+     * @dev Returns the status of the calling player.
+     * @return An int representation of the enum PlayerStatus [NotPlaying, NeedsToDecide, Bust, Hit, Stand].
+     */
+    function getStatus() public view returns (PlayerStatus) {
+        return playerStatus[msg.sender];
+    }
 
     /**
      * @dev Allows a player to join the game by placing a bet.
@@ -112,28 +114,24 @@ contract BlockJack {
             currentRoundTimeout = block.timestamp + roundSessionExpiryInSeconds;
         } else if (phase == Phase.PlayersStand) {
             dealerReveal();
-            resetState();
         } else if (phase == Phase.PlayersBust) {
-            resetState();
+            emit Win(dealer, hands[dealer]);
         }
     }
 
     /**
-    * @dev updates players status to hit. Allows him to request an additional card.
-    */
+     * @dev updates players status to hit. Allows him to request an additional card.
+     */
     function hit() public {
         decide(PlayerStatus.Hit);
-        emit Hit(msg.sender);
     }
 
     /**
-    * @dev updates players status to stand. Player chooses not to receive any additional cards.
-    */
+     * @dev updates players status to stand. Player chooses not to receive any additional cards.
+     */
     function stand() public {
         decide(PlayerStatus.Stand);
-        emit Stand(msg.sender);
     }
-
 
     /**
      * @dev Handle player decision.
@@ -156,7 +154,7 @@ contract BlockJack {
         playerStatus[msg.sender] = status;
     }
 
-   /**
+    /**
      * @return True if all players have decided.
      */
     function haveAllPlayersDecided() private view returns (bool) {
@@ -206,24 +204,24 @@ contract BlockJack {
         updateGamePhase(playersBust, playersStand);
     }
 
-
     function markPlayerAsStand(address player) private {
-        emit Stand(player);
         playerStatus[player] = PlayerStatus.Stand;
     }
-
 
     /**
      * @dev Updates the game phase based on the player statuses.
      * @param playersBust The number of players who have busted.
      * @param playersStand The number of players who have stood.
      */
-    function updateGamePhase(uint256 playersBust, uint256 playersStand)
-    private
-    {
-        if (playersBust == players.length) phase = Phase.PlayersBust;
-        else if (playersBust + playersStand == players.length)
+    function updateGamePhase(
+        uint256 playersBust,
+        uint256 playersStand
+    ) private {
+        if (playersBust == players.length) {
+            phase = Phase.PlayersBust;
+        } else if (playersBust + playersStand == players.length) {
             phase = Phase.PlayersStand;
+        }
     }
 
     /**
@@ -241,22 +239,19 @@ contract BlockJack {
         }
     }
 
-
     /**
      * @dev Handles the dealer's actions and determines the outcome of the game.
      */
     function dealerReveal() private {
         // dealer should only continue if there are any players to continue round
-        if (phase == Phase.HitOrStand) {
-            while (sumOfHand(hands[dealer]) < DEALER_DECISION) {
-                hands[dealer].push(getCard(dealer));
-            }
-            if (sumOfHand(hands[dealer]) > BLACK_JACK) {
-                notifyPlayersThatWon();
-                emit Bust(dealer);
-            } else {
-                emit Win(dealer);
-            }
+        while (sumOfHand(hands[dealer]) < DEALER_DECISION) {
+            hands[dealer].push(getCard(dealer));
+        }
+        if (sumOfHand(hands[dealer]) > BLACK_JACK) {
+            notifyPlayersThatWon();
+            emit Bust(dealer);
+        } else {
+            emit Win(dealer, hands[dealer]);
         }
     }
 
@@ -266,7 +261,7 @@ contract BlockJack {
     function notifyPlayersThatWon() private {
         for (uint256 i = 0; i < players.length; i++) {
             if (playerStatus[players[i]] == PlayerStatus.Stand) {
-                emit Win(players[i]);
+                emit Win(players[i], hands[players[i]]);
             }
         }
     }
@@ -280,31 +275,27 @@ contract BlockJack {
      * @param playerAddress The address of the player.
      * @return A pseudo-random uint256.
      */
-    function getRandomNumber(address playerAddress)
-    internal
-    view
-    returns (uint256)
-    {
+    function getRandomNumber(
+        address playerAddress
+    ) internal view returns (uint256) {
         return
             uint256(
-            keccak256(
-                abi.encodePacked(
-                    playerAddress,
-                    block.timestamp,
-                    block.number,
-                    block.prevrandao,
-                    blockhash(block.number - 1),
-                    hands[playerAddress]
+                keccak256(
+                    abi.encodePacked(
+                        playerAddress,
+                        block.timestamp,
+                        block.number,
+                        block.prevrandao,
+                        blockhash(block.number - 1),
+                        hands[playerAddress]
+                    )
                 )
-            )
-        );
+            );
     }
 
-    function sumOfHand(Card[] memory hand)
-    private
-    pure
-    returns (uint256 totalSum)
-    {
+    function sumOfHand(
+        Card[] memory hand
+    ) private pure returns (uint256 totalSum) {
         uint256 aceCount = 0;
         for (uint256 i = 0; i < hand.length; i++) {
             totalSum += Math.min(
@@ -322,12 +313,18 @@ contract BlockJack {
         return totalSum;
     }
 
-    function resetState() private {
+    function newGame() public {
+        require(msg.sender == dealer, "Only dealer can restart the game");
+        require(
+            phase == Phase.PlayersBust || phase == Phase.PlayersStand,
+            "Can't start a new game while other game is running"
+        );
         phase = Phase.PlaceBets;
         for (uint256 i = 0; i < players.length; i++) {
             delete hands[players[i]];
             playerStatus[players[i]] = PlayerStatus.NotPlaying;
         }
+        delete hands[dealer];
         delete players;
     }
 
